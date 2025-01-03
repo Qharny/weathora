@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weathora/main.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -37,19 +38,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _toggleTheme(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('darkMode', value);
+    setState(() => _isDarkMode = value);
+    WeatherApp.of(context).toggleTheme(value);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Settings')),
+      appBar: AppBar(
+        title: Text('Settings'),
+        backgroundColor: Theme.of(context).primaryColor,
+      ),
       body: ListView(
         children: [
           SwitchListTile(
             title: Text('Dark Mode'),
+            subtitle: Text('Toggle dark theme'),
             value: _isDarkMode,
-            onChanged: (value) {
-              setState(() => _isDarkMode = value);
-              _saveSetting('darkMode', value);
-            },
+            onChanged: _toggleTheme,
           ),
           ListTile(
             title: Text('Temperature Unit'),
@@ -58,18 +67,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               items: ['°C', '°F'].map((unit) => 
                 DropdownMenuItem(value: unit, child: Text(unit))
               ).toList(),
-              onChanged: (value) {
-                setState(() => _temperatureUnit = value!);
-                _saveSetting('tempUnit', value);
+              onChanged: (value) async {
+                if (value != null) {
+                  final prefs = await SharedPreferences.getInstance();
+                  await prefs.setString('tempUnit', value);
+                  setState(() => _temperatureUnit = value);
+                }
               },
             ),
           ),
           SwitchListTile(
             title: Text('Weather Notifications'),
+            subtitle: Text('Get weather updates'),
             value: _notificationsEnabled,
-            onChanged: (value) {
+            onChanged: (value) async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('notifications', value);
               setState(() => _notificationsEnabled = value);
-              _saveSetting('notifications', value);
             },
           ),
         ],
