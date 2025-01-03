@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:weathora/screens/settings.dart';
 import 'package:weathora/services/location.dart';
+import 'package:weathora/widgets/animated_weather_icon.dart';
 import 'package:weathora/widgets/floating_button.dart';
 import '../services/weather_service.dart';
 import '../models/weather_data.dart';
@@ -111,7 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                 CustomScrollView(
                   slivers: [
                     SliverAppBar(
-                      expandedHeight: 380,
+                      expandedHeight: 420, // Increased height
                       floating: false,
                       pinned: true,
                       backgroundColor: Colors.transparent,
@@ -121,7 +122,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                           children: [
                             WeatherHeader(weatherData: _weatherData),
                             Positioned(
-                              top: 50,
+                              top: MediaQuery.of(context).padding.top +
+                                  10, // Adjusted position
                               left: 20,
                               right: 20,
                               child: SearchBar(
@@ -133,7 +135,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                             ),
                             if (_isSearching)
                               Positioned(
-                                top: 110,
+                                top: MediaQuery.of(context).padding.top +
+                                    70, // Adjusted position
                                 left: 20,
                                 right: 20,
                                 child: RecentSearchesList(
@@ -164,16 +167,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     },
                   ),
                 ),
-                // Positioned(
-                //   right: 16,
-                //   bottom: 16,
-                //   child:
-                //   // FloatingActionButton(
-                //   //   onPressed: _loadLocationWeather,
-                //   //   backgroundColor: Theme.of(context).primaryColor,
-                //   //   child: Icon(Icons.my_location),
-                //   // ),
-                // ),
               ],
             ),
     );
@@ -286,6 +279,8 @@ class WeatherHeader extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          SizedBox(
+              height: MediaQuery.of(context).padding.top + 60), // Added padding
           Text(
             weatherData!.location,
             style: TextStyle(
@@ -293,6 +288,11 @@ class WeatherHeader extends StatelessWidget {
               fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
+          ),
+          SizedBox(height: 20),
+          AnimatedWeatherIcon(
+            condition: weatherData!.condition,
+            size: 120,
           ),
           SizedBox(height: 20),
           Text(
@@ -312,6 +312,49 @@ class WeatherHeader extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class DetailItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const DetailItem({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, color: Theme.of(context).primaryColor),
+        SizedBox(width: 8),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey[600],
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -421,45 +464,45 @@ class WeatherDetailCard extends StatelessWidget {
   }
 }
 
-class DetailItem extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String value;
+// class DetailItem extends StatelessWidget {
+//   final IconData icon;
+//   final String title;
+//   final String value;
 
-  const DetailItem({
-    super.key,
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
+//   const DetailItem({
+//     super.key,
+//     required this.icon,
+//     required this.title,
+//     required this.value,
+//   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, color: Theme.of(context).primaryColor),
-        SizedBox(width: 8),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.grey[600],
-              ),
-            ),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
+//   @override
+//   Widget build(BuildContext context) {
+//     return Row(
+//       children: [
+//         Icon(icon, color: Theme.of(context).primaryColor),
+//         SizedBox(width: 8),
+//         Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             Text(
+//               title,
+//               style: TextStyle(
+//                 fontSize: 14,
+//                 color: Colors.grey[600],
+//               ),
+//             ),
+//             Text(
+//               value,
+//               style: TextStyle(
+//                 fontSize: 16,
+//                 fontWeight: FontWeight.bold,
+//               ),
+//             ),
+//           ],
+//         ),
+//       ],
+//     );
+//   }
+// }
