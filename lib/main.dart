@@ -1,10 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:weathora/screens/splash.dart';
+import 'package:weathora/services/notification.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async{
   WidgetsFlutterBinding.ensureInitialized();
+
+  final notificationService = WeatherNotificationService();
+  await notificationService.initialize();
+  await notificationService.scheduleWeatherChecks();
   SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp])
       .then((_) => runApp(WeatherApp()));
 }

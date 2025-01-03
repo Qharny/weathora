@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:weathora/screens/settings.dart';
+import 'package:weathora/services/location.dart';
+import 'package:weathora/widgets/floating_button.dart';
 import '../services/weather_service.dart';
 import '../models/weather_data.dart';
 
@@ -9,20 +13,67 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   final WeatherService _weatherService = WeatherService();
+  final TextEditingController _searchController = TextEditingController();
   WeatherData? _weatherData;
   bool _isLoading = true;
+  bool _isSearching = false;
+  List<String> _recentSearches = [];
+  late AnimationController _fadeController;
 
   @override
   void initState() {
     super.initState();
+    _fadeController = AnimationController(
+      duration: Duration(milliseconds: 800),
+      vsync: this,
+    );
     _loadWeatherData();
+    _loadRecentSearches();
   }
 
-  Future<void> _loadWeatherData() async {
+  Future<void> _loadRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _recentSearches = prefs.getStringList('recent_searches') ?? [];
+    });
+  }
+
+  Future<void> _saveSearch(String city) async {
+    if (!_recentSearches.contains(city)) {
+      final prefs = await SharedPreferences.getInstance();
+      _recentSearches.insert(0, city);
+      if (_recentSearches.length > 5) _recentSearches.removeLast();
+      await prefs.setStringList('recent_searches', _recentSearches);
+      setState(() {});
+    }
+  }
+
+  Future<void> _searchCity(String city) async {
+    if (city.isEmpty) return;
+
+    setState(() => _isLoading = true);
     try {
-      final weather = await _weatherService.getWeather('New York');
+      final weatherData = await _weatherService.getWeather(city);
+      await _saveSearch(city);
+      setState(() {
+        _weatherData = weatherData;
+        _isSearching = false;
+      });
+      _searchController.clear();
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('City not found')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadWeatherData([String? city]) async {
+    try {
+      final weather = await _weatherService.getWeather(city ?? 'New York');
       setState(() {
         _weatherData = weather;
         _isLoading = false;
@@ -37,26 +88,177 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _loadLocationWeather() async {
+    try {
+      final locationService = LocationService();
+      final position = await locationService.getCurrentLocation();
+      final city = await locationService.getCityName(position);
+      await _loadWeatherData(city);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not get location: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
-          : CustomScrollView(
-              slivers: [
-                SliverAppBar(
-                  expandedHeight: 300,
-                  floating: false,
-                  pinned: true,
-                  flexibleSpace: FlexibleSpaceBar(
-                    background: WeatherHeader(weatherData: _weatherData),
+          : Stack(
+              children: [
+                CustomScrollView(
+                  slivers: [
+                    SliverAppBar(
+                      expandedHeight: 380,
+                      floating: false,
+                      pinned: true,
+                      backgroundColor: Colors.transparent,
+                      flexibleSpace: FlexibleSpaceBar(
+                        background: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            WeatherHeader(weatherData: _weatherData),
+                            Positioned(
+                              top: 50,
+                              left: 20,
+                              right: 20,
+                              child: SearchBar(
+                                controller: _searchController,
+                                onSearch: _searchCity,
+                                onFocus: (focused) =>
+                                    setState(() => _isSearching = focused),
+                              ),
+                            ),
+                            if (_isSearching)
+                              Positioned(
+                                top: 110,
+                                left: 20,
+                                right: 20,
+                                child: RecentSearchesList(
+                                  searches: _recentSearches,
+                                  onSelect: _searchCity,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: WeatherDetails(weatherData: _weatherData),
+                    ),
+                  ],
+                ),
+                Positioned(
+                  right: 16,
+                  bottom: 16,
+                  child: FloatingMenuButton(
+                    onLocationPressed: _loadLocationWeather,
+                    onSettingsPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => SettingsScreen()),
+                      );
+                    },
                   ),
                 ),
-                SliverToBoxAdapter(
-                  child: WeatherDetails(weatherData: _weatherData),
-                ),
+                // Positioned(
+                //   right: 16,
+                //   bottom: 16,
+                //   child:
+                //   // FloatingActionButton(
+                //   //   onPressed: _loadLocationWeather,
+                //   //   backgroundColor: Theme.of(context).primaryColor,
+                //   //   child: Icon(Icons.my_location),
+                //   // ),
+                // ),
               ],
             ),
+    );
+  }
+}
+
+class SearchBar extends StatelessWidget {
+  final TextEditingController controller;
+  final Function(String) onSearch;
+  final Function(bool) onFocus;
+
+  const SearchBar({
+    super.key,
+    required this.controller,
+    required this.onSearch,
+    required this.onFocus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 50,
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(25),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Focus(
+        onFocusChange: onFocus,
+        child: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: 'Search city...',
+            prefixIcon: Icon(Icons.search),
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+          ),
+          onSubmitted: onSearch,
+        ),
+      ),
+    );
+  }
+}
+
+class RecentSearchesList extends StatelessWidget {
+  final List<String> searches;
+  final Function(String) onSelect;
+
+  const RecentSearchesList({
+    super.key,
+    required this.searches,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: ListView.builder(
+          shrinkWrap: true,
+          physics: NeverScrollableScrollPhysics(),
+          itemCount: searches.length,
+          itemBuilder: (context, index) {
+            return ListTile(
+              leading: Icon(Icons.history),
+              title: Text(searches[index]),
+              onTap: () => onSelect(searches[index]),
+            );
+          }),
     );
   }
 }
@@ -183,7 +385,8 @@ class WeatherDetailCard extends StatelessWidget {
   final String title;
   final List<DetailItem> details;
 
-  const WeatherDetailCard({super.key, 
+  const WeatherDetailCard({
+    super.key,
     required this.title,
     required this.details,
   });
@@ -223,7 +426,8 @@ class DetailItem extends StatelessWidget {
   final String title;
   final String value;
 
-  const DetailItem({super.key, 
+  const DetailItem({
+    super.key,
     required this.icon,
     required this.title,
     required this.value,

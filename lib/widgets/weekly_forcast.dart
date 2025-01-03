@@ -68,7 +68,7 @@ class ForecastDay extends StatelessWidget {
           Expanded(
             child: AnimatedWeatherIcon(
               condition: weather.condition,
-              size: 40,
+              size: 80,
             ),
           ),
           Text(
