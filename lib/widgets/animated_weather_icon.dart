@@ -1,6 +1,5 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
+import 'dart:math' as math;
 
 class AnimatedWeatherIcon extends StatefulWidget {
   final String condition;
@@ -17,268 +16,289 @@ class AnimatedWeatherIcon extends StatefulWidget {
 }
 
 class _AnimatedWeatherIconState extends State<AnimatedWeatherIcon>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
+    with TickerProviderStateMixin {
+  late AnimationController _rotationController;
+  late AnimationController _bounceController;
+  late AnimationController _scaleController;
+  late AnimationController _shakeController;
+  late AnimationController _floatController;
+  
+  late Animation<double> _bounceAnimation;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _shakeAnimation;
+  late Animation<double> _floatAnimation;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      duration: Duration(seconds: 2),
+    
+    // Rotation animation with variable speed
+    _rotationController = AnimationController(
+      duration: const Duration(seconds: 3),
       vsync: this,
     )..repeat();
+
+    // Enhanced bounce animation with spring effect
+    _bounceController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat();
+    
+    _bounceAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0, end: -15)
+            .chain(CurveTween(curve: Curves.easeOutCubic)),
+        weight: 30.0,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -15, end: 0)
+            .chain(CurveTween(curve: Curves.bounceOut)),
+        weight: 70.0,
+      ),
+    ]).animate(_bounceController);
+
+    // Breathing scale animation
+    _scaleController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _scaleAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.0, end: 1.2)
+            .chain(CurveTween(curve: Curves.easeInOutSine)),
+        weight: 50.0,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 1.2, end: 1.0)
+            .chain(CurveTween(curve: Curves.easeInOutSine)),
+        weight: 50.0,
+      ),
+    ]).animate(_scaleController);
+
+    // Shake animation for thunder
+    _shakeController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat();
+    
+    _shakeAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -5, end: 5)
+            .chain(CurveTween(curve: Curves.elasticIn)),
+        weight: 25.0,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 5, end: -5)
+            .chain(CurveTween(curve: Curves.elasticOut)),
+        weight: 25.0,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: -5, end: 0)
+            .chain(CurveTween(curve: Curves.bounceOut)),
+        weight: 50.0,
+      ),
+    ]).animate(_shakeController);
+
+    // Floating animation for clouds
+    _floatController = AnimationController(
+      duration: const Duration(seconds: 4),
+      vsync: this,
+    )..repeat(reverse: true);
+    
+    _floatAnimation = TweenSequence<double>([
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 0, end: 10)
+            .chain(CurveTween(curve: Curves.easeInOutSine)),
+        weight: 50.0,
+      ),
+      TweenSequenceItem(
+        tween: Tween<double>(begin: 10, end: 0)
+            .chain(CurveTween(curve: Curves.easeInOutSine)),
+        weight: 50.0,
+      ),
+    ]).animate(_floatController);
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _rotationController.dispose();
+    _bounceController.dispose();
+    _scaleController.dispose();
+    _shakeController.dispose();
+    _floatController.dispose();
     super.dispose();
+  }
+
+  String _getWeatherIcon(String condition) {
+    final Map<String, String> weatherIcons = {
+      'sunny': 'https://openweathermap.org/img/wn/01d@2x.png',
+      'cloudy': 'https://openweathermap.org/img/wn/03d@2x.png',
+      'overcast': 'https://openweathermap.org/img/wn/04d@2x.png',
+      'rain': 'https://openweathermap.org/img/wn/10d@2x.png',
+      'snow': 'https://openweathermap.org/img/wn/13d@2x.png',
+      'light snow': 'https://openweathermap.org/img/wn/13d@2x.png',
+      'thunderstorm': 'https://openweathermap.org/img/wn/11d@2x.png',
+      'fog': 'https://openweathermap.org/img/wn/50d@2x.png',
+      'wind': 'https://openweathermap.org/img/wn/50d@2x.png',
+    };
+
+    return weatherIcons[condition.toLowerCase()] ?? 'https://openweathermap.org/img/wn/01d@2x.png';
+  }
+
+  Widget _buildComplexAnimation(Widget child, String condition) {
+    switch (condition.toLowerCase()) {
+      case 'thunderstorm':
+        return AnimatedBuilder(
+          animation: Listenable.merge([_shakeAnimation, _scaleAnimation]),
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(_shakeAnimation.value, 0),
+              child: Transform.scale(
+                scale: _scaleAnimation.value,
+                child: child,
+              ),
+            );
+          },
+          child: child,
+        );
+
+      case 'rain':
+        return AnimatedBuilder(
+          animation: Listenable.merge([_bounceAnimation, _rotationController]),
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(
+                math.sin(_rotationController.value * 2 * math.pi) * 5,
+                _bounceAnimation.value,
+              ),
+              child: child,
+            );
+          },
+          child: child,
+        );
+
+      case 'snow':
+        return AnimatedBuilder(
+          animation: Listenable.merge([_bounceAnimation, _rotationController]),
+          builder: (context, child) {
+            return Transform.rotate(
+              angle: math.sin(_rotationController.value * 2 * math.pi) * 0.1,
+              child: Transform.translate(
+                offset: Offset(0, _bounceAnimation.value),
+                child: child,
+              ),
+            );
+          },
+          child: child,
+        );
+      case 'light snow':
+        return AnimatedBuilder(
+          animation: Listenable.merge([_bounceAnimation, _rotationController]),
+          builder: (context, child) {
+            return Transform.rotate(
+              angle: math.sin(_rotationController.value * 2 * math.pi) * 0.1,
+              child: Transform.translate(
+                offset: Offset(0, _bounceAnimation.value),
+                child: child,
+              ),
+            );
+          },
+          child: child,
+        );
+
+      case 'wind':
+        return RotationTransition(
+          turns: _rotationController,
+          child: AnimatedBuilder(
+            animation: _bounceAnimation,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(_bounceAnimation.value, 0),
+                child: child,
+              );
+            },
+            child: child,
+          ),
+        );
+
+      case 'cloudy':
+      case 'overcast':
+        return AnimatedBuilder(
+          animation: Listenable.merge([_floatAnimation, _scaleAnimation]),
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(
+                math.sin(_floatController.value * math.pi) * 8,
+                _floatAnimation.value,
+              ),
+              child: Transform.scale(
+                scale: 0.9 + (_scaleAnimation.value - 1.0) * 0.2,
+                child: child,
+              ),
+            );
+          },
+          child: child,
+        );
+
+      case 'sunny':
+        return AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.rotate(
+              angle: _rotationController.value * 2 * math.pi,
+              child: Transform.scale(
+                scale: _scaleAnimation.value,
+                child: child,
+              ),
+            );
+          },
+          child: child,
+        );
+
+      default:
+        return child;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        return CustomPaint(
-          size: Size(widget.size, widget.size),
-          painter: WeatherIconPainter(
-            condition: widget.condition,
-            animation: _controller,
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 800),
+      transitionBuilder: (Widget child, Animation<double> animation) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeInOut,
+          ),
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, -0.5),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.elasticOut,
+            )),
+            child: child,
           ),
         );
       },
-    );
-  }
-}
-
-class WeatherIconPainter extends CustomPainter {
-  final String condition;
-  final Animation<double> animation;
-
-  WeatherIconPainter({
-    required this.condition,
-    required this.animation,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.fill;
-
-    switch (condition.toLowerCase()) {
-      case 'sunny':
-        _drawSun(canvas, size, paint);
-        break;
-      case 'cloudy':
-      case 'overcast':
-        _drawCloud(canvas, size, paint);
-        break;
-      case 'rain':
-        _drawRain(canvas, size, paint);
-        break;
-      case 'snow':
-        _drawSnow(canvas, size, paint);
-        break;
-      case 'thunderstorm':
-        _drawThunderstorm(canvas, size, paint);
-        break;
-      case 'fog':
-        _drawFog(canvas, size, paint);
-        break;
-      case 'wind':
-        _drawWind(canvas, size, paint);
-        break;
-      default:
-        _drawDefaultIcon(canvas, size, paint);
-    }
-  }
-
-  void _drawSun(Canvas canvas, Size size, Paint paint) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 4;
-
-    // Draw sun circle
-    canvas.drawCircle(center, radius, paint);
-
-    // Draw animated rays
-    final rayCount = 8;
-    final rayLength = radius * 0.5;
-
-    for (var i = 0; i < rayCount; i++) {
-      final angle = (i * 2 * pi / rayCount) + (animation.value * 2 * pi);
-      final startPoint = Offset(
-        center.dx + cos(angle) * (radius + 5),
-        center.dy + sin(angle) * (radius + 5),
-      );
-      final endPoint = Offset(
-        center.dx + cos(angle) * (radius + rayLength),
-        center.dy + sin(angle) * (radius + rayLength),
-      );
-
-      canvas.drawLine(startPoint, endPoint, paint..strokeWidth = 3);
-    }
-  }
-
-  void _drawCloud(Canvas canvas, Size size, Paint paint) {
-    final path = Path();
-    final offset = Offset(
-      size.width * 0.2 + (sin(animation.value * 2 * pi) * 5),
-      size.height * 0.4,
-    );
-
-    path.moveTo(offset.dx, offset.dy);
-    path.quadraticBezierTo(
-      offset.dx - 10,
-      offset.dy - 20,
-      offset.dx + 20,
-      offset.dy - 25,
-    );
-    path.quadraticBezierTo(
-      offset.dx + 35,
-      offset.dy - 30,
-      offset.dx + 50,
-      offset.dy - 10,
-    );
-    path.quadraticBezierTo(
-      offset.dx + 65,
-      offset.dy,
-      offset.dx + 50,
-      offset.dy + 15,
-    );
-    path.quadraticBezierTo(
-      offset.dx + 25,
-      offset.dy + 25,
-      offset.dx,
-      offset.dy,
-    );
-
-    canvas.drawPath(path, paint);
-  }
-
-  void _drawRain(Canvas canvas, Size size, Paint paint) {
-    _drawCloud(canvas, size, paint);
-
-    // Draw animated raindrops
-    final dropCount = 5;
-    for (var i = 0; i < dropCount; i++) {
-      final progress = (animation.value + (i / dropCount)) % 1.0;
-      final xOffset = size.width * (0.3 + (i * 0.15));
-      final yOffset = size.height * (0.6 + (progress * 0.3));
-
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(xOffset, yOffset),
-          width: 4,
-          height: 8,
+      child: _buildComplexAnimation(
+        Image.network(
+          _getWeatherIcon(widget.condition),
+          key: ValueKey<String>(widget.condition),
+          width: widget.size,
+          height: widget.size,
+          errorBuilder: (context, error, stackTrace) {
+            return Icon(
+              Icons.wb_sunny,
+              size: widget.size,
+              color: Colors.white,
+            );
+          },
         ),
-        paint,
-      );
-    }
-  }
-
-  void _drawSnow(Canvas canvas, Size size, Paint paint) {
-    _drawCloud(canvas, size, paint);
-
-    // Animate snowflakes
-    final snowflakeCount = 8;
-    final time = animation.value * 2 * pi;
-
-    for (var i = 0; i < snowflakeCount; i++) {
-      final progress = (animation.value + (i / snowflakeCount)) % 1.0;
-      final xOffset = size.width * (0.2 + (i * 0.15)) + (sin(time + i) * 5);
-      final yOffset = size.height * (0.6 + (progress * 0.3));
-
-      // Draw snowflake
-      for (var j = 0; j < 6; j++) {
-        final angle = (j * pi / 3) + (time * 0.5);
-        final lineLength = size.width * 0.03;
-
-        canvas.drawLine(
-          Offset(xOffset, yOffset),
-          Offset(
-            xOffset + cos(angle) * lineLength,
-            yOffset + sin(angle) * lineLength,
-          ),
-          paint..strokeWidth = 2,
-        );
-      }
-    }
-  }
-
-  void _drawThunderstorm(Canvas canvas, Size size, Paint paint) {
-    _drawCloud(canvas, size, paint);
-
-    // Animate lightning bolt
-    if (animation.value > 0.7) {
-      final boltPath = Path();
-      final startX = size.width * 0.5;
-      final startY = size.height * 0.5;
-
-      boltPath.moveTo(startX, startY);
-      boltPath.lineTo(startX - 10, startY + 15);
-      boltPath.lineTo(startX + 5, startY + 15);
-      boltPath.lineTo(startX - 5, startY + 30);
-      boltPath.lineTo(startX + 15, startY + 15);
-      boltPath.lineTo(startX, startY + 15);
-      boltPath.close();
-
-      canvas.drawPath(boltPath, paint..color = Colors.yellow);
-    }
-
-    // Reset paint color
-    paint.color = Colors.white;
-  }
-
-  void _drawFog(Canvas canvas, Size size, Paint paint) {
-    final time = animation.value * 2 * pi;
-    final lineCount = 5;
-    final lineSpacing = size.height / (lineCount + 1);
-
-    for (var i = 0; i < lineCount; i++) {
-      final y = lineSpacing * (i + 1);
-      final xOffset = sin(time + i) * 10;
-
-      canvas.drawLine(
-        Offset(size.width * 0.2 + xOffset, y),
-        Offset(size.width * 0.8 + xOffset, y),
-        paint..strokeWidth = 3,
-      );
-    }
-  }
-
-  void _drawWind(Canvas canvas, Size size, Paint paint) {
-    final time = animation.value * 2 * pi;
-    final lineCount = 3;
-    final lineSpacing = size.height / (lineCount + 1);
-
-    for (var i = 0; i < lineCount; i++) {
-      final y = lineSpacing * (i + 1);
-      final xOffset = sin(time + i) * 10;
-      final curve = Path();
-
-      curve.moveTo(size.width * 0.2 + xOffset, y);
-      curve.quadraticBezierTo(
-        size.width * 0.5 + xOffset,
-        y + 10,
-        size.width * 0.8 + xOffset,
-        y,
-      );
-
-      canvas.drawPath(curve, paint..strokeWidth = 3);
-    }
-  }
-
-  void _drawDefaultIcon(Canvas canvas, Size size, Paint paint) {
-    canvas.drawCircle(
-      Offset(size.width / 2, size.height / 2),
-      size.width / 4,
-      paint,
+        widget.condition,
+      ),
     );
   }
-
-  @override
-  bool shouldRepaint(WeatherIconPainter oldDelegate) =>
-      oldDelegate.animation.value != animation.value;
 }
