@@ -134,8 +134,10 @@ class _AnimatedWeatherIconState extends State<AnimatedWeatherIcon>
     final Map<String, String> weatherIcons = {
       'sunny': 'https://openweathermap.org/img/wn/01d@2x.png',
       'cloudy': 'https://openweathermap.org/img/wn/03d@2x.png',
+      'partly cloudy': 'https://openweathermap.org/img/wn/02d@2x.png',
       'overcast': 'https://openweathermap.org/img/wn/04d@2x.png',
       'rain': 'https://openweathermap.org/img/wn/10d@2x.png',
+      'drizzle': 'https://openweathermap.org/img/wn/10d@2x.png',
       'snow': 'https://openweathermap.org/img/wn/13d@2x.png',
       'light snow': 'https://openweathermap.org/img/wn/13d@2x.png',
       'thunderstorm': 'https://openweathermap.org/img/wn/11d@2x.png',
@@ -224,6 +226,7 @@ class _AnimatedWeatherIconState extends State<AnimatedWeatherIcon>
 
       case 'cloudy':
       case 'overcast':
+      case 'partly cloudy':
         return AnimatedBuilder(
           animation: Listenable.merge([_floatAnimation, _scaleAnimation]),
           builder: (context, child) {
